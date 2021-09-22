@@ -1,10 +1,14 @@
 package com.example.safwalker
 
 import android.content.ContentResolver
+import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.provider.DocumentsProvider
 import android.provider.OpenableColumns
+import android.util.Log
+import androidx.documentfile.provider.DocumentFile
 
 class SafUtils {
 
@@ -12,6 +16,7 @@ class SafUtils {
         const val MIME_TYPE_IS_DIRECTORY = "vnd.android.document/directory"
         const val COLUMNS_DISPLAY_NAME = OpenableColumns.DISPLAY_NAME
         const val COLUMNS_MIME_TYPE = "mime_type"
+        const val TAG = "SafUtils"
 
         /**
          * Walk a file tree using the Storage Access Framework.
@@ -29,14 +34,25 @@ class SafUtils {
          */
         @JvmStatic
         fun walkSafTree(
+            context: Context,
             contentResolver: ContentResolver,
             treeUri: Uri,
             docId: String,
             onNewLevel: (Int) -> Unit,
-            onNewFile: (Cursor) -> Boolean
+            onNewFile: (Cursor) -> Boolean,
         ) {
             onNewLevel(1)
+            val rootDocument = DocumentFile.fromTreeUri(context, treeUri)
+            Log.d(TAG, "walkSafTree: $rootDocument")
+            val files = rootDocument?.listFiles()?.filter { it.exists() }?.forEach {
+                Log.w(TAG, "walkSafTree: ${it.name}" )
+            }
             val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, docId)
+            Log.e(TAG, "childrenUri: $childrenUri" )
+            val dataDocument = DocumentFile.fromTreeUri(context, childrenUri)
+            dataDocument?.listFiles()?.forEach {
+                Log.w(TAG, "dataDocument: ${it.name}" )
+            }
             contentResolver.query(childrenUri, null, null, null)
                 ?.use { cursor ->
                     val nameIndex = cursor.getColumnIndex(COLUMNS_DISPLAY_NAME)
@@ -44,15 +60,18 @@ class SafUtils {
                     while (cursor.moveToNext()) {
                         if (onNewFile(cursor)) break
                         val mimeType = cursor.getString(mimeIndex)
+                        val displayName = cursor.getString(nameIndex)
+                        Log.w(TAG, "walkSafTreeCursor: $displayName" )
                         if (mimeType == MIME_TYPE_IS_DIRECTORY) {
                             val displayName = cursor.getString(nameIndex)
-                            walkSafTree(
-                                contentResolver,
-                                treeUri,
-                                "$docId/$displayName",
-                                onNewLevel,
-                                onNewFile
-                            )
+//                            walkSafTree(
+//                                context,
+//                                contentResolver,
+//                                treeUri,
+//                                "$docId/$displayName",
+//                                onNewLevel,
+//                                onNewFile
+//                            )
                         }
                     }
                 }

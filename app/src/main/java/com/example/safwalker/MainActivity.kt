@@ -63,7 +63,9 @@ class MainActivity : AppCompatActivity() {
         var fileCount = 0
 
         GlobalScope.launch(Dispatchers.IO) {
-            SafUtils.walkSafTree(mContentResolver, treeUri, docId,
+            SafUtils.walkSafTree(
+                this@MainActivity,
+                mContentResolver, treeUri, docId,
                 { levelChange ->
                     if (levelChange < 0) {
                         currentLevel--
